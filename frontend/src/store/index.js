@@ -1,5 +1,5 @@
 import { createStore } from 'vuex'
-
+//test
 export default createStore({
   state: {
   },
