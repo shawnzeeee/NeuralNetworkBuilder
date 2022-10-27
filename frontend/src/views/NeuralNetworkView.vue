@@ -47,7 +47,7 @@
 import NeuralNetworkMain from '../components/NeuralNetwork/NeuralNetworkMain'
 
 export default {
-  name: 'HomeView',
+  name: 'NeuralNetworkView',
   components: {
     NeuralNetworkMain
   },
