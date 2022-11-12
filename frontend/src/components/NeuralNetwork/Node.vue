@@ -44,12 +44,10 @@ export default {
         },
     },
     mounted() {
-        //console.log(this.node);
         const layerWidth = (this.boxWidth - 30) / this.layerLength;
         for (let i = 0; i < this.layerLength; i++) {
             if (this.layers[i].id === this.node.layerID) {
                 this.node.x = layerWidth * i + layerWidth / 2;
-                console.log(this.node.x);
             }
         }
         const layerHeight = this.boxHeight - 100;
