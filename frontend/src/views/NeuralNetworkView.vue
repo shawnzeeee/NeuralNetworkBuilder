@@ -18,7 +18,7 @@
                             </v-btn>
                         </v-col>
                         <v-col cols="4">
-                            <upload- type="file" @change="addFile" ref="file" />
+                            <input type="file" ref="file" @change="addFile" />
                             <v-btn fab large @click="submitFile">
                                 Submit
                             </v-btn>
@@ -56,6 +56,7 @@
 // @ is an alias to /src
 
 import NeuralNetworkMain from "../components/NeuralNetwork/NeuralNetworkMain";
+import { mapActions, mapGetters, mapMutations } from "vuex";
 export default {
     name: "NeuralNetworkView",
     components: {
@@ -68,37 +69,46 @@ export default {
             layerID: 0,
             nodeID: 0,
             blob: null,
+            trainingData: null,
         };
     },
     methods: {
+        ...mapActions({
+            trainNetwork: "NeuralNetwork/train",
+        }),
         addFile() {
             this.file = this.$refs.file.files[0];
-            console.log(this.file);
         },
         async submitFile() {
-            const formData = new FormData();
-            formData.append("file", this.file);
-            //const stringSequence = await new Response(blob).text();
-            console.log(formData.values());
+            let rows = [];
+            const reader = new FileReader();
+            reader.readAsText(this.file);
+            reader.onload = (e) => {
+                this.trainingData = e.target.result;
+                this.trainNetwork({
+                    trainingData: this.trainingData,
+                    layers: this.layers,
+                }).then((res) => {
+                    console.log(res);
+                });
+            };
         },
         addNode(layerID) {
             //adding nodes, x and y defaulted to null because its defaulted in Node.vue
-            for (let i = 0; i < this.layers.length; i++) {
-                if (this.layers[i].id == layerID) {
-                    this.nodes.push({
-                        layerID,
-                        x: null,
-                        y: null,
-                        id: this.nodeID,
-                    });
-                    this.nodeID += 1;
-                }
-            }
+            this.nodes.push({
+                layerID,
+                x: null,
+                y: null,
+                id: this.nodeID,
+            });
+            this.layers.find((layer) => layer.id == layerID).nodesLength += 1;
+            this.nodeID += 1;
         },
         addLayer() {
             this.layers.push({
                 type: "Hidden Layer",
                 id: this.layerID,
+                nodesLength: 0,
             });
             this.layerID += 1;
         },
