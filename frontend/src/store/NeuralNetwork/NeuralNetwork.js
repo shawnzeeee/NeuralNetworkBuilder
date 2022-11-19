@@ -12,7 +12,7 @@ export default {
                     {
                         params: {
                             trainingData: payload.trainingData,
-                            layers: payload.layers,
+                            layers: JSON.stringify(payload.layers),
                         },
                     }
                 );
