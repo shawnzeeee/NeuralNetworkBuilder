@@ -9,6 +9,9 @@ import math
 def train(request):
         def sigmoid(num):
                 return 1 / (1 + math.exp(-num))
+        def diffSigmoid(num):
+                return sigmoid(num) * (1 - sigmoid(num)) 
+        
 #get initial training data
         rawData = request.GET.get('trainingData')
         rows = rawData.split('\n')
@@ -16,7 +19,6 @@ def train(request):
         inputArr = []
         for i in range(len(rows)):
                 newRow = rows[i].split(',')
-                #del newRow[len(newRow)-1]
                 if '?' not in newRow and '' not in newRow:
                         newRow = [float(i) for i in newRow]
                         inputArr.append(newRow)
@@ -39,7 +41,6 @@ def train(request):
         outputArr = []
         for i in range(len(outputVector)):
                 index = outputVector[i]
-                #inputCol = numpy.array([[i] for i in numpy.zeros(outputLength+1)])
                 inputRow = numpy.zeros(outputLength)
                 inputRow[index] = 1
                 outputArr.append(inputRow)
@@ -48,19 +49,54 @@ def train(request):
         inputMatrix = numpy.delete(inputMatrix,int(colLength)-1, 1)
         for i in range(len(layers)-1):
                 if i == len(layers)-2:
-                        layers[i]['weightMatrix'] = numpy.random.uniform(-2,2,(int(layers[i]['nodesLength']), outputLength))
+                        #layers[i]['weightMatrix'] = numpy.random.uniform(-1,1,(int(layers[i]['nodesLength']), outputLength))
+                        layers[i]['weightMatrix'] = numpy.random.randn(int(layers[i]['nodesLength']), outputLength) * math.sqrt(2/(outputLength+int(layers[i]['nodesLength'])))
                 else:
-                        layers[i]['weightMatrix'] = numpy.random.uniform(-2,2,(int(layers[i]['nodesLength']),int(layers[i+1]['nodesLength'])))
+                        #layers[i]['weightMatrix'] = numpy.random.uniform(-1,1,(int(layers[i]['nodesLength']),int(layers[i+1]['nodesLength'])))
+                        layers[i]['weightMatrix'] = numpy.random.randn(int(layers[i]['nodesLength']), int(layers[i+1]['nodesLength'])) * math.sqrt(2/(int(layers[i+1]['nodesLength'])+int(layers[i]['nodesLength'])))
                 layers[i]['activation'] = numpy.array([numpy.zeros(int(layers[i]['nodesLength']))])
-                layers[i]['bias'] = numpy.random.uniform(-2,2,(1,int(layers[i+1]['nodesLength'])))
+                layers[i]['bias'] = numpy.random.uniform(-10,10,(1,int(layers[i+1]['nodesLength'])))
+                layers[i]['weightGradientAverage'] = numpy.zeros(layers[i]['weightMatrix'].shape)
+                layers[i]['biasGradientAverage'] = numpy.zeros(layers[i]['bias'].shape)
         layers[len(layers)-1]['activation'] = numpy.array([numpy.zeros(int(layers[len(layers)-1]['nodesLength']))])
+   
 
         for i in range(int(rowLength)):
-                layers[0]['activation'] = inputMatrix[i]
+                layers[0]['activation'] = numpy.array([inputMatrix[i]])
                 for j in range(len(layers)-1):
-                        inputActivation = numpy.add(numpy.matmul(layers[j]['activation'],layers[j]['weightMatrix']), layers[j]['bias'])
-                        layers[j+1]['activation'] = numpy.array([sigmoid(i) for i in inputActivation[0]])
-        #print(layers)
+                        sigmoidActivation = numpy.array([sigmoid(node) for node in layers[j]['activation'][0]])
+                        inputActivation = numpy.add(numpy.matmul(sigmoidActivation,layers[j]['weightMatrix']), layers[j]['bias'])
+                        layers[j+1]['activation'] = numpy.array(inputActivation)
+                #backprobagation
+                sigmoidActivation = numpy.array([sigmoid(node) for node in layers[len(layers)-1]['activation'][0]])
+                costFunction = numpy.array([numpy.power(numpy.subtract(sigmoidActivation, outputMatrix[i]),2)])
+                delta = numpy.multiply(costFunction, numpy.array([diffSigmoid(i) for i in outputMatrix[i]]))
+                k = len(layers)-2
 
+                while k >= 0:
+                        weightGradientInput = []
+                        for i in delta[0]:
+                                weightGradientInput.append(numpy.multiply(layers[k]['activation'][0],i))
+                        weightGradientInput = numpy.transpose(numpy.array(weightGradientInput))
+                        layers[k]['weightGradientAverage'] = numpy.add(layers[k]['weightGradientAverage'],weightGradientInput)
+                        layers[k]['biasGradientAverage'] = numpy.add(layers[k]['biasGradientAverage'], delta)
+                        delta = numpy.multiply(numpy.matmul(delta, numpy.transpose(layers[k]['weightMatrix'])), [diffSigmoid(node) for node in layers[k]['activation'][0]])
+                        k -= 1
 
+        for i in range(len(layers)-1):
+                eta = 0.0001
+                layers[i]['weightGradientAverage'] = numpy.multiply(numpy.divide(layers[i]['weightGradientAverage'], int(rowLength)),eta)
+                layers[i]['biasGradientAverage'] = numpy.multiply(numpy.divide(layers[i]['biasGradientAverage'], int(rowLength)),eta)
+                layers[i]['weightMatrix'] = numpy.subtract(layers[i]['weightMatrix'], layers[i]['weightGradientAverage'])
+                layers[i]['bias'] = numpy.subtract(layers[i]['bias'], layers[i]['biasGradientAverage'])
+        
+        #test
+        layers[0]['activation'] = numpy.array([inputMatrix[1]])
+        for j in range(len(layers)-1):
+                sigmoidActivation = numpy.array([sigmoid(node) for node in layers[j]['activation'][0]])
+                inputActivation = numpy.add(numpy.matmul(sigmoidActivation,layers[j]['weightMatrix']), layers[j]['bias'])
+                layers[j+1]['activation'] = numpy.array(inputActivation)       
+        print( layers[len(layers)-1]['activation'])
+        layers[len(layers)-1]['activation'] = numpy.array([sigmoid(i) for i in layers[len(layers)-1]['activation'][0]])
+        print( layers[len(layers)-1]['activation'])
         return JsonResponse({"status": 'Success'}) 
