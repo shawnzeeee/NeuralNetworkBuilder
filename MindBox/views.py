@@ -49,11 +49,13 @@ def train(request):
         inputMatrix = numpy.delete(inputMatrix,int(colLength)-1, 1)
         for i in range(len(layers)-1):
                 if i == len(layers)-2:
-                        layers[i]['weightMatrix'] = numpy.random.uniform(-2,2,(int(layers[i]['nodesLength']), outputLength))
+                        #layers[i]['weightMatrix'] = numpy.random.uniform(-1,1,(int(layers[i]['nodesLength']), outputLength))
+                        layers[i]['weightMatrix'] = numpy.random.randn(int(layers[i]['nodesLength']), outputLength) * math.sqrt(2/(outputLength+int(layers[i]['nodesLength'])))
                 else:
-                        layers[i]['weightMatrix'] = numpy.random.uniform(-2,2,(int(layers[i]['nodesLength']),int(layers[i+1]['nodesLength'])))
+                        #layers[i]['weightMatrix'] = numpy.random.uniform(-1,1,(int(layers[i]['nodesLength']),int(layers[i+1]['nodesLength'])))
+                        layers[i]['weightMatrix'] = numpy.random.randn(int(layers[i]['nodesLength']), int(layers[i+1]['nodesLength'])) * math.sqrt(2/(int(layers[i+1]['nodesLength'])+int(layers[i]['nodesLength'])))
                 layers[i]['activation'] = numpy.array([numpy.zeros(int(layers[i]['nodesLength']))])
-                layers[i]['bias'] = numpy.random.uniform(-2,2,(1,int(layers[i+1]['nodesLength'])))
+                layers[i]['bias'] = numpy.random.uniform(-10,10,(1,int(layers[i+1]['nodesLength'])))
                 layers[i]['weightGradientAverage'] = numpy.zeros(layers[i]['weightMatrix'].shape)
                 layers[i]['biasGradientAverage'] = numpy.zeros(layers[i]['bias'].shape)
         layers[len(layers)-1]['activation'] = numpy.array([numpy.zeros(int(layers[len(layers)-1]['nodesLength']))])
@@ -77,9 +79,24 @@ def train(request):
                                 weightGradientInput.append(numpy.multiply(layers[k]['activation'][0],i))
                         weightGradientInput = numpy.transpose(numpy.array(weightGradientInput))
                         layers[k]['weightGradientAverage'] = numpy.add(layers[k]['weightGradientAverage'],weightGradientInput)
-                        #print(numpy.transpose(layers[k]['weightMatrix']).shape,delta.shape)
+                        layers[k]['biasGradientAverage'] = numpy.add(layers[k]['biasGradientAverage'], delta)
                         delta = numpy.multiply(numpy.matmul(delta, numpy.transpose(layers[k]['weightMatrix'])), [diffSigmoid(node) for node in layers[k]['activation'][0]])
                         k -= 1
+
+        for i in range(len(layers)-1):
+                eta = 0.0001
+                layers[i]['weightGradientAverage'] = numpy.multiply(numpy.divide(layers[i]['weightGradientAverage'], int(rowLength)),eta)
+                layers[i]['biasGradientAverage'] = numpy.multiply(numpy.divide(layers[i]['biasGradientAverage'], int(rowLength)),eta)
+                layers[i]['weightMatrix'] = numpy.subtract(layers[i]['weightMatrix'], layers[i]['weightGradientAverage'])
+                layers[i]['bias'] = numpy.subtract(layers[i]['bias'], layers[i]['biasGradientAverage'])
         
-                        
+        #test
+        layers[0]['activation'] = numpy.array([inputMatrix[1]])
+        for j in range(len(layers)-1):
+                sigmoidActivation = numpy.array([sigmoid(node) for node in layers[j]['activation'][0]])
+                inputActivation = numpy.add(numpy.matmul(sigmoidActivation,layers[j]['weightMatrix']), layers[j]['bias'])
+                layers[j+1]['activation'] = numpy.array(inputActivation)       
+        print( layers[len(layers)-1]['activation'])
+        layers[len(layers)-1]['activation'] = numpy.array([sigmoid(i) for i in layers[len(layers)-1]['activation'][0]])
+        print( layers[len(layers)-1]['activation'])
         return JsonResponse({"status": 'Success'}) 
